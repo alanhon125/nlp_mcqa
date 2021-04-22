@@ -1,9 +1,9 @@
 # COMP5423 - NLP Project MCQA on MCTest, RACE, DREAM Datasets 
 Group Member: 
-HON Chi Ting 20104142G 
-CHIU Ka Chun 20001511G 
-FUNG Che Hei 19013111G 
-CHAN Ka Long 20024242G 
+- HON Chi Ting 20104142G 
+- CHIU Ka Chun 20001511G 
+- FUNG Che Hei 19013111G 
+- CHAN Ka Long 20024242G 
 
 ## Introduction
 
@@ -26,9 +26,9 @@ evaluate our QA system, i.e., MCTest, RACE, and DREAM.
 ### Get datasets
 1. All three MCQA datasets needed to be put inside the folder "/content/nlp_MCQA_project/data". If you don't acquire datasets, please download it from the links below:
 
-• MCTest: https://mattr1.github.io/mctest/data.html
-• RACE: https://www.cs.cmu.edu/~glai1/data/race/
-• DREAM: https://dataset.org/dream/
+- MCTest: https://mattr1.github.io/mctest/data.html
+- RACE: https://www.cs.cmu.edu/~glai1/data/race/
+- DREAM: https://dataset.org/dream/
 
 Folder name has to be 'MCTEST', 'RACE' and 'DREAM' (case-sensitive) respectively inside folder "/content/nlp_MCQA_project/data"
 
