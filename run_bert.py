@@ -182,7 +182,7 @@ def train(parameters, train_datasets, model, tokenizer):
             inputs = {'input_ids':   batch[0],
                   'attention_mask': batch[1],
                   'token_type_ids': batch[2],
-                  'labels':     torch.reshape(batch[3],(parameters['train_batch_size'][0],))}
+                  'labels':     torch.reshape(batch[3],(batch[3].size(0),))}
             outputs = model(**inputs)
             loss = outputs[0]
 
@@ -254,7 +254,7 @@ def evaluate(parameters, model, tokenizer, epoch=0, is_test=False):
                 inputs = {'input_ids':      batch[0],
                       'attention_mask': batch[1],
                       'token_type_ids': batch[2],  # XLM don't use segment_ids
-                      'labels':     torch.reshape(batch[3],(parameters['eval_batch_size'],))
+                      'labels':     torch.reshape(batch[3],(batch[3].size(0),))
                           }
               
                 outputs = model(**inputs)
