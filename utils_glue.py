@@ -31,6 +31,30 @@ from sklearn.metrics import f1_score
 
 logger = logging.getLogger(__name__)
 
+output_modes = {
+    "dream": "multi-choice",
+    "race": 'multi-choice',
+    "mctest": 'multi-choice',
+    "mctest160": 'multi-choice',
+    "mctest500": 'multi-choice',
+}
+
+GLUE_TASKS_NUM_LABELS = {
+    "dream": 3,
+    "race": 4,
+    "mctest": 4,
+    "mctest160": 4,
+    "mctest500": 4,
+}
+
+MAX_SEQ_LENGTHS = {
+    "race": 256,
+    "dream": 256,
+    "mctest": 256,
+    "mctest160": 256,
+    "mctest500": 256,
+}
+
 '''
 -------------------------------------------------------
 Classes:
@@ -57,6 +81,7 @@ Functions summary:
 6. pearson_and_spearman: return dictionary of Pearson and Spearman correlation coefficients
 7. compute_metrics: compute metrics (you can customize to show accuracy/acc_and_f1/pearson_and_spearman)
 '''
+
 
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
@@ -140,7 +165,6 @@ class DreamProcessor(DataProcessor):
         """See base class."""
         return ["0", "1", "2"]
 
-
     def _create_examples(self, data_dir, set_type, level=None):
         """Creates examples for the training and dev sets."""
         examples = []
@@ -161,7 +185,7 @@ class DreamProcessor(DataProcessor):
                             examples.append(
                                 InputExample(guid=guid, text_a=text_a, text_b=options[k], label=label, text_c=text_c))
             else:
-                i = randint(0, len(data)-1)
+                i = randint(0, len(data) - 1)
                 logger.info("*** Drawing example ***")
                 logger.info(f"example_id: {i}")
                 logger.info(f"Passage: {data[i][0]}")
@@ -180,6 +204,7 @@ class DreamProcessor(DataProcessor):
                         examples.append(
                             InputExample(guid=guid, text_a=text_a, text_b=options[k], label=label, text_c=text_c))
         return examples
+
 
 class RaceProcessor(DataProcessor):
 
@@ -209,10 +234,10 @@ class RaceProcessor(DataProcessor):
         # else:
         # data_dirs = ['{}/{}/{}'.format(data_dir, set_type, self.level)]
         if level is None:
-            data_dirs = ['{}/{}/{}/'.format(data_dir, set_type, 'high'),
-                         '{}/{}/{}/'.format(data_dir, set_type, 'middle')]
+            data_dirs = ['{}/{}/{}'.format(data_dir, set_type, 'high'),
+                         '{}/{}/{}'.format(data_dir, set_type, 'middle')]
         else:
-            data_dirs = ['{}/{}/{}/'.format(data_dir, set_type, level)]
+            data_dirs = ['{}/{}/{}'.format(data_dir, set_type, level)]
 
         examples = []
         example_id = 0
@@ -232,10 +257,11 @@ class RaceProcessor(DataProcessor):
                             guid = "%s-%s-%s" % (set_type, example_id, k)
                             option = options[k]
                             examples.append(
-                                    InputExample(guid=guid, text_a=article, text_b=option, label=truth,
-                                                 text_c=question))
+                                InputExample(guid=guid, text_a=article, text_b=option, label=truth,
+                                             text_c=question))
 
         return examples
+
 
 class MCTest160Processor(DataProcessor):
 
@@ -270,7 +296,7 @@ class MCTest160Processor(DataProcessor):
                 articles.append(line[2].replace("\\newline", " "))
                 for idx in range(3, 23, 5):
                     questions[-1].append(line[idx].partition(":")[-1][1:])
-                    options[-1].append(line[idx+1:idx+5])
+                    options[-1].append(line[idx + 1:idx + 5])
                 questions.append([])
                 options.append([])
 
@@ -279,37 +305,38 @@ class MCTest160Processor(DataProcessor):
             for line in fpr:
                 line = line.strip().split('\t')
                 answers.append(list(map(lambda x: str(ord(x) - ord('A')), line)))
-        
+
         examples = []
         example_id = 0
         article_id = 0
-        rand_id = randint(0, len(articles)-1)
+        rand_id = randint(0, len(articles) - 1)
 
-        if level is None: 
+        if level is None:
             for article, question, option, answer in zip(articles, questions, options, answers):
                 for ques, opt, ans in zip(question, option, answer):
                     example_id += 1
                     for k, op in enumerate(opt):
                         guid = "%s-%s-%s" % (set_type, example_id, k)
                         examples.append(
-                                InputExample(guid=guid, text_a=article, text_b=op, label=ans,
-                                             text_c=ques))
+                            InputExample(guid=guid, text_a=article, text_b=op, label=ans,
+                                         text_c=ques))
         else:
             for article, question, option, answer in zip(articles, questions, options, answers):
                 article_id += 1
                 if article_id != rand_id:
                     continue
                 logger.info("*** Drawing example ***")
-                logger.info(f"article_id: {article_id-1}")
+                logger.info(f"article_id: {article_id - 1}")
                 for ques, opt, ans in zip(question, option, answer):
-                    example_id += 1   
+                    example_id += 1
                     for k, op in enumerate(opt):
                         guid = "%s-%s-%s" % (set_type, example_id, k)
                         examples.append(
-                                InputExample(guid=guid, text_a=article, text_b=op, label=ans,
-                                             text_c=ques))
+                            InputExample(guid=guid, text_a=article, text_b=op, label=ans,
+                                         text_c=ques))
 
         return examples
+
 
 class MCTest500Processor(DataProcessor):
 
@@ -344,7 +371,7 @@ class MCTest500Processor(DataProcessor):
                 articles.append(line[2].replace("\\newline", " "))
                 for idx in range(3, 23, 5):
                     questions[-1].append(line[idx].partition(":")[-1][1:])
-                    options[-1].append(line[idx+1:idx+5])
+                    options[-1].append(line[idx + 1:idx + 5])
                 questions.append([])
                 options.append([])
 
@@ -357,31 +384,31 @@ class MCTest500Processor(DataProcessor):
         examples = []
         example_id = 0
         article_id = 0
-        rand_id = randint(0, len(articles)-1)
+        rand_id = randint(0, len(articles) - 1)
 
-        if level is None: 
+        if level is None:
             for article, question, option, answer in zip(articles, questions, options, answers):
                 for ques, opt, ans in zip(question, option, answer):
                     example_id += 1
                     for k, op in enumerate(opt):
                         guid = "%s-%s-%s" % (set_type, example_id, k)
                         examples.append(
-                                InputExample(guid=guid, text_a=article, text_b=op, label=ans,
-                                             text_c=ques))
+                            InputExample(guid=guid, text_a=article, text_b=op, label=ans,
+                                         text_c=ques))
         else:
             for article, question, option, answer in zip(articles, questions, options, answers):
                 article_id += 1
                 if article_id != rand_id:
                     continue
                 logger.info("*** Drawing example ***")
-                logger.info(f"article_id: {article_id-1}")
+                logger.info(f"article_id: {article_id - 1}")
                 for ques, opt, ans in zip(question, option, answer):
-                    example_id += 1   
+                    example_id += 1
                     for k, op in enumerate(opt):
                         guid = "%s-%s-%s" % (set_type, example_id, k)
                         examples.append(
-                                InputExample(guid=guid, text_a=article, text_b=op, label=ans,
-                                             text_c=ques))
+                            InputExample(guid=guid, text_a=article, text_b=op, label=ans,
+                                         text_c=ques))
 
         return examples
 
@@ -445,6 +472,7 @@ class MCTestProcessor(DataProcessor):
                                      text_c=ques))
 
         return examples
+
 
 def convert_examples_to_features(examples, label_list, max_seq_length,
                                  tokenizer, output_mode,
@@ -601,6 +629,7 @@ def _truncate_seq_tuple(tokens_a, tokens_b, tokens_c, max_length):
         else:
             tokens_c.pop()
 
+
 def _truncate_seq_pair(tokens_a, tokens_b, max_length):
     """Truncates a sequence pair in place to the maximum length."""
 
@@ -617,8 +646,10 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
         else:
             tokens_b.pop()
 
+
 def simple_accuracy(preds, labels):
     return (preds == labels).mean()
+
 
 def acc_and_f1(preds, labels):
     acc = simple_accuracy(preds, labels)
@@ -628,6 +659,7 @@ def acc_and_f1(preds, labels):
         "f1": f1,
         "acc_and_f1": (acc + f1) / 2,
     }
+
 
 def pearson_and_spearman(preds, labels):
     pearson_corr = pearsonr(preds, labels)[0]
@@ -648,34 +680,11 @@ def compute_metrics(task_name, preds, labels):
     else:
         return {"acc": simple_accuracy(preds, labels)}
 
+
 processors = {
     "dream": DreamProcessor,
     "race": RaceProcessor,
     "mctest": MCTestProcessor,
     "mctest160": MCTest160Processor,
     "mctest500": MCTest500Processor,
-}
-
-output_modes = {
-    "dream": "multi-choice",
-    "race": 'multi-choice',
-    "mctest": 'multi-choice',
-    "mctest160": 'multi-choice',
-    "mctest500": 'multi-choice',
-}
-
-GLUE_TASKS_NUM_LABELS = {
-    "dream": 3,
-    "race": 4,
-    "mctest": 4,
-    "mctest160": 4,
-    "mctest500": 4,
-}
-
-MAX_SEQ_LENGTHS = {
-    "race": 256,
-    "dream": 256,
-    "mctest": 256,
-    "mctest160": 256,
-    "mctest500": 256,
 }
