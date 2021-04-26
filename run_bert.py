@@ -67,12 +67,12 @@ Usage of parameters:
 '''
 parameters = {
     'data_dir': None,
-    'bert_model': "albert-large-v1",
+    'bert_model': "albert-large-v2",
     'task_name': "mctest,race,dream",
     'output_dir': "tmp/",
 
     'do_lower_case': True,
-    'do_train': True,
+    'do_train': False,
     'do_eval': True,
     'per_gpu_train_batch_size': [8,8,8],
     'per_gpu_eval_batch_size': 16,
@@ -375,14 +375,16 @@ def load_and_cache_examples(parameters, task, tokenizer, set_type='train'):
 
 def main():
     if parameters['local_rank'] == -1 or parameters['no_cuda']:
-        parameters['device'] = torch.device("cuda:0" if torch.cuda.is_available() and not parameters['no_cuda'] else "cpu")
+        parameters['device'] = torch.device(
+            "cuda" if torch.cuda.is_available() and not parameters['no_cuda'] else "cpu")
         parameters['n_gpu'] = torch.cuda.device_count()
     else:
-        parameters['device'] = torch.device("cuda:0", parameters['local_rank'])
+        parameters['device'] = torch.device("cuda", parameters['local_rank'])
         parameters['n_gpu'] = 1
         # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         torch.distributed.init_process_group(backend='nccl')
-    logger.info("device %s n_gpu %d distributed training %r", parameters['device'], parameters['n_gpu'], bool(parameters['local_rank'] != -1))
+    logger.info("device %s n_gpu %d distributed training %r", parameters['device'], parameters['n_gpu'],
+                bool(parameters['local_rank'] != -1))
 
     if parameters['gradient_accumulation_steps'] < 1:
         raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
@@ -391,6 +393,7 @@ def main():
     if not parameters['do_train'] and not parameters['do_eval']:
         raise ValueError("At least one of `do_train` or `do_eval` must be True.")
 
+    # Load saved model from /tmp if exists
     if os.path.exists(parameters['output_dir']) and os.listdir(parameters['output_dir']):
         if parameters['do_train']:
             print("Output directory ({}) already exists and is not empty.".format(parameters['output_dir']))
@@ -402,15 +405,20 @@ def main():
     ## prepare tasks
     # split and lowercase task names
     parameters['task_name'] = parameters['task_name'].lower().split(',')
+    # parameters['per_gpu_train_batch_size'] = list(map(int,str(parameters['per_gpu_train_batch_size'])))
     for task_name in parameters['task_name']:
         if task_name not in processors:
             raise ValueError("Task not found: %s" % (parameters['task_name']))
-    parameters['data_dir'] = {task_name: data_dir_ for task_name, data_dir_ in zip(parameters['task_name'], parameters['data_dir'])}
+    parameters['data_dir'] = {task_name: data_dir_ for task_name, data_dir_ in
+                              zip(parameters['task_name'], parameters['data_dir'])}
     num_labels = [GLUE_TASKS_NUM_LABELS[task_name] for task_name in parameters['task_name']]
     task_output_config = [(output_modes[task_name], num_label)
                           for task_name, num_label in zip(parameters['task_name'], num_labels)]
 
+    # tokenizer = tokenization.BertTokenizer.from_pretrained(parameters['bert_model'], do_lower_case=parameters['do_lower_case'])
     tokenizer = AlbertTokenizer.from_pretrained(parameters['bert_model'])
+
+    # model = BertForMultipleChoice_MT_general.from_pretrained(parameters['bert_model'], task_output_config=task_output_config)
     model = AlbertForMultipleChoice.from_pretrained(parameters['bert_model'])
     model.to(parameters['device'])
 
@@ -419,6 +427,18 @@ def main():
                                                           output_device=parameters['local_rank'])
     elif parameters['n_gpu'] > 1:
         model = torch.nn.DataParallel(model)
+
+    if torch.cuda.is_available():
+        map_location = lambda storage, loc: storage.cuda()
+    else:
+        map_location = 'cpu'
+
+    saved_model_path = os.path.join(parameters['output_dir'], WEIGHTS_NAME)
+    if os.path.exists(saved_model_path):
+        if hasattr(model, 'module'):
+            model.module.load_state_dict(torch.load(saved_model_path, map_location=map_location))
+        else:
+            model.load_state_dict(torch.load(saved_model_path, map_location=map_location))
 
     if parameters['do_train']:
         train_datasets = [load_and_cache_examples(parameters, task_name, tokenizer, set_type='train')
@@ -434,21 +454,12 @@ def main():
         model_to_save.config.to_json_file(output_config_file)
         tokenizer.save_vocabulary(parameters['output_dir'])
 
-    if torch.cuda.is_available():
-        map_location = lambda storage, loc: storage.cuda()
-    else:
-        map_location = 'cpu'
-
     if parameters['do_eval'] and not parameters['do_train']:
-        if hasattr(model, 'module'):
-            model.module.load_state_dict(torch.load(os.path.join(parameters['output_dir'], WEIGHTS_NAME),map_location=map_location),strict=False)
-        else:
-            model.load_state_dict(torch.load(os.path.join(parameters['output_dir'], WEIGHTS_NAME),map_location=map_location),strict=False)
-
         model.eval()
         epoch = parameters['num_train_epochs']
         evaluate(parameters, model, tokenizer, epoch=epoch, is_test=False)
         evaluate(parameters, model, tokenizer, epoch=epoch, is_test=True)
+
 
 if __name__ == "__main__":
     main()
