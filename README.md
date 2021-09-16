@@ -1,9 +1,4 @@
-# COMP5423 - NLP Project MCQA on MCTest, RACE, DREAM Datasets 
-Group Member: 
-- HON Chi Ting 20104142G 
-- CHIU Ka Chun 20001511G 
-- FUNG Che Hei 19013111G 
-- CHAN Ka Long 20024242G 
+# NLP Project MCQA on MCTest, RACE, DREAM Datasets 
 
 ## Introduction
 
